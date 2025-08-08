@@ -4,11 +4,12 @@
 __pycache__/
 .python-version
 build/
-tides_spextractor/version.py
-tides_spextractor.egg-info/
+host_removal/version.py
+host_removal.egg-info/
 
 # Data and figure folders
 *.pdf
+
 
 
 

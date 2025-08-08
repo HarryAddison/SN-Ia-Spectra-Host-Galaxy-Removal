@@ -1,0 +1,38 @@
+[project]
+name = "host_removal"
+dynamic = ["version"]
+license = {text = "BSD 3-Clause"}
+authors = [
+  {name = "Harry Addison", email = "ha00871@surrey.ac.uk"}]
+keywords = ["SN Ia", "Host Galaxy"]
+description = "Removal of host galaxy contamination from SN Ia spectra"
+readme = {file = "README.rst", content-type = "text/x-rst"}
+dependencies = ["astropy", "matplotlib", "numpy", "scipy"]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-doctestplus"]
+doc = ["setuptools_scm", "sphinx", "sphinx-argparse", "sphinx-astropy"]
+
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["host_removal*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"host_removal.data" = ["data/*.csv"]
+
+[tool.setuptools_scm]
+write_to = "host_removal/version.py"
+
+[tool.pytest.ini_options]
+testpaths = ["host_removal"]
+addopts = "--doctest-modules"
+
+[tool.coverage.run]
+source = ["host_removal"]
