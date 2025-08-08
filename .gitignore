@@ -1,0 +1,15 @@
+.git/
+
+# package building / other 
+__pycache__/
+.python-version
+build/
+tides_spextractor/version.py
+tides_spextractor.egg-info/
+
+# Data and figure folders
+*.pdf
+*.fits
+
+
+
