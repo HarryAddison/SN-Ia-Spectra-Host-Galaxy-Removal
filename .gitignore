@@ -9,7 +9,6 @@ tides_spextractor.egg-info/
 
 # Data and figure folders
 *.pdf
-*.fits
 
 
 
