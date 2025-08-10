@@ -83,6 +83,7 @@ class HostGalaxyRemoval:
                     axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]],
                                  np.dot(self.gal_eigenvals[i], eigenspec[self.sn_keys[1]]),
                                  label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]})")
+                axes[2].legend()
         else:
             print("Fitting failed! \nCould not plot model spectra.")
 
