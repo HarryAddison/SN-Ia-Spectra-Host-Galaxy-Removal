@@ -81,7 +81,7 @@ class HostGalaxyRemoval:
                 for i, eigenspec in enumerate(self.gal_eigenspec):
                     axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
                     axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]],
-                                 np.dot(self.gal_eigenvals[i], eigenspec["flux"]),
+                                 np.dot(self.gal_eigenvals[i], eigenspec[self.sn_keys[1]]),
                                  label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]})")
         else:
             print("Fitting failed! \nCould not plot model spectra.")
@@ -115,7 +115,7 @@ class HostGalaxyRemoval:
         sn_templates = load_sn_templates(self.sn_phase)
         sn_templates_aligned = []
         for spec in sn_templates:
-            sn_templates_aligned.append(align_spec_wave(self.sn_spec_trimmed, spec))
+            sn_templates_aligned.append(align_spec_wave(self.sn_spec_trimmed, spec, keys1=self.sn_keys))
         self.sn_templates = sn_templates_aligned
 
 
@@ -127,7 +127,7 @@ class HostGalaxyRemoval:
         gal_eigenspec = load_gal_eigenspec()
         gal_eigenspec_aligned = []
         for spec in gal_eigenspec:
-            gal_eigenspec_aligned.append(align_spec_wave(self.sn_spec_trimmed, spec))
+            gal_eigenspec_aligned.append(align_spec_wave(self.sn_spec_trimmed, spec, keys1=self.sn_keys))
         self.gal_eigenspec = gal_eigenspec_aligned
 
 
@@ -154,9 +154,9 @@ class HostGalaxyRemoval:
 
     def _design_matrix(self, sn_template):
         poly = self._define_sn_template_polynomial()
-        gal_eigenspec_fluxes = np.array([spec["flux"] for spec in self.gal_eigenspec])
-        design_matrix = np.vstack([sn_template["flux"] * poly[0], sn_template["flux"] * poly[1],
-                                   sn_template["flux"] * poly[2], gal_eigenspec_fluxes]).T
+        gal_eigenspec_fluxes = np.array([spec[self.sn_keys[1]] for spec in self.gal_eigenspec])
+        design_matrix = np.vstack([sn_template[self.sn_keys[1]] * poly[0], sn_template[self.sn_keys[1]] * poly[1],
+                                   sn_template[self.sn_keys[1]] * poly[2], gal_eigenspec_fluxes]).T
         return design_matrix
 
 
@@ -164,7 +164,6 @@ class HostGalaxyRemoval:
 
         design_matrix = self._design_matrix(sn_template)
         target_vec = self.sn_spec_trimmed[self.sn_keys[1]].value
-        print(target_vec)
 
         # Require that the galaxy eigenvalues are positive.
         lower_bounds = np.concatenate([[-np.inf] * 3, [0.0] * len(self.gal_eigenspec)])
