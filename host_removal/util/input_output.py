@@ -23,9 +23,7 @@ def load_sn_templates(obs_phase, phase_diff=5):
     sn_templates = []
     for i in range((phase_diff * 2) + 1):
         phase = obs_phase - phase_diff + i  # gives phases between obs_phase +- phase_diff
-        print("finding sn templates")
         file_paths = list(find_matching_files(template_dir, pattern=f"sn_template_phase_{phase:.1f}"))
-        print("number of templates found", len(file_paths))
         for path in file_paths:
             template = QTable.read(path)
             template["flux"] /= max(template["flux"])
