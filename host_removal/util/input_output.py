@@ -18,7 +18,7 @@ def find_matching_files(dir, pattern):
 
 
 def load_sn_templates(obs_phase, phase_diff=5):
-    template_dir  = path = files('host_removal.data').joinpath(f"sn-templates")
+    template_dir  = path = files('host_removal.data').joinpath(f"sn-templates/templates")
 
     sn_templates = []
     for i in range((phase_diff * 2) + 1):
