@@ -22,5 +22,9 @@ hgr = HostGalaxyRemoval(sn_spec, rest_phase, sn_keys=["wave", "flux", "flux_err"
 # Run the fitting procedure to get the galaxy model
 hgr.fit_spectrum()
 
+# Remove the host galaxy model from the observed spectrum.
+hgr.remove_galaxy_contamination(method="full")
+
 # Plot the results of the fitting
-hgr.plot_fit(plot_gal_components=True, show=True)
+hgr.plot_fit(plot_host_free_spec=True, plot_gal_components=True, show=True)
+

@@ -62,11 +62,33 @@ class HostGalaxyRemoval:
                 self.spec_model_params = design_matrix
 
 
-    def plot_fit(self, plot_gal_components=True, show=True):
+    def remove_galaxy_contamination(self, method="trimmed"):
+        '''
+        Remove the fitted galaxy spectrum from the observed data and return
+        the value.
+        If the galaxy spectrum has not yet been determined then run the fitting
+        process.
+        '''
+
+        if self.gal_model is None:
+            self.fit_spectrum()
+
+        self.sn_spec_no_host = self.sn_spec_trimmed.copy()
+        self.sn_spec_no_host[self.sn_keys[1]] -= self.gal_model
+
+
+        return self.sn_spec_no_host
+
+
+    def plot_fit(self, plot_host_free_spec=True, plot_gal_components=True, show=True):
+        n_subplots = 2
+        axes_ind = 2
         if plot_gal_components:
-            fig, axes = plt.subplots(3,1, sharex=True)
-        else:
-            fig, axes = plt.subplots(2,1, sharex=True)
+            n_subplots += 1
+        if plot_host_free_spec:
+            n_subplots += 1
+        
+        fig, axes = plt.subplots(n_subplots, 1, sharex=True)
         
         if self.spec_model is not None:
             axes[0].plot(self.sn_spec[self.sn_keys[0]], self.sn_spec[self.sn_keys[1]], label="Observed Spectrum")
@@ -79,44 +101,24 @@ class HostGalaxyRemoval:
             axes[1].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.sn_spec_trimmed[self.sn_keys[1]] - self.spec_model, label="Residual (Observed - Model)")
             axes[1].legend()
 
+            if plot_host_free_spec and self.sn_spec_no_host is not None:
+                axes[axes_ind].plot(self.sn_spec_no_host[self.sn_keys[0]], self.sn_spec_no_host[self.sn_keys[1]], label="Host Free Observed Spectrum")
+                axes[axes_ind].plot(self.sn_spec_no_host[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
+                axes[axes_ind].legend()
+                axes_ind += 1
+
             if plot_gal_components:
-                axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
+                axes[axes_ind].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
                 for i, eigenspec in enumerate(self.gal_eigenspec):
-                    axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]],
+                    axes[axes_ind].plot(self.sn_spec_trimmed[self.sn_keys[0]],
                                  np.dot(self.gal_eigenvals[i], eigenspec[self.sn_keys[1]]),
                                  label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]:.2E})")
-                axes[2].legend()
+                axes[axes_ind].legend()
         else:
             print("Fitting failed! \nCould not plot model spectra.")
 
         if show:
             plt.show()
-
-
-    def remove_galaxy_contamination(self, method="trimmed"):
-        '''
-        Remove the fitted galaxy spectrum from the observed data and return
-        the value.
-        If the galaxy spectrum has not yet been determined then run the fitting
-        process.
-        '''
-
-        if self.gal_model is None:
-            self.fit_spectrum()
-
-        if method is "trimmed":
-            self.sn_spec_no_host = self.sn_spec_trimmed.copy()
-            self.sn_spec_no_host[self.sn_keys[1]] -= self.gal_model
-        elif method is "full":
-            self.sn_spec_no_host = self.sn_spec.copy()
-            self.sn_spec_no_host = align_spec_wave(self.gal_eigenspec, self.sn_spec_no_host,
-                                                   method="linear", keys1=["wave", "flux"], keys2=self.sn_keys)
-            full_gal_model = np.ravel(self.spec_model_params[:, 3:] @ self.gal_eigenvals)
-            self.sn_spec_no_host[self.sn_keys[1]] -= full_gal_model
-        else:
-            ValueError(f"Invalid method: '{method}'\nValid options are 'trimmed' or 'full'")
-        
-        return self.sn_spec_no_host
 
 
     def _obtain_sn_templates(self):
