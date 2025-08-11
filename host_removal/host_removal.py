@@ -73,21 +73,19 @@ class HostGalaxyRemoval:
             axes[0].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
             axes[0].legend()
             # Residual plot
-            axes[1].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.sn_spec_trimmed[self.sn_keys[1]] - self.spec_model, label="Residual (Observed - Model)")
             axes[1].axhline(0, 0, 1, c="k")
+            axes[1].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.sn_spec_trimmed[self.sn_keys[1]] - self.spec_model, label="Residual (Observed - Model)")
             axes[1].legend()
 
             if plot_gal_components:
+                axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
                 for i, eigenspec in enumerate(self.gal_eigenspec):
-                    axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
                     axes[2].plot(self.sn_spec_trimmed[self.sn_keys[0]],
                                  np.dot(self.gal_eigenvals[i], eigenspec[self.sn_keys[1]]),
-                                 label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]})")
+                                 label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]:.2E})")
                 axes[2].legend()
         else:
             print("Fitting failed! \nCould not plot model spectra.")
-
-        
 
         if show:
             plt.show()
