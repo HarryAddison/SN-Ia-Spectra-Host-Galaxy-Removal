@@ -1,0 +1,39 @@
+# Save directories for template spectrum, photometry,
+# L1 joined spectrum, and the parameter grid.
+template_spec_dir: "./templates"
+param_grid_path: "./template_parameters.fits"
+
+
+#List of models to be used ["model_name", "version", "SN type"]
+salt_templates: [["salt2", "2.4", "Ia"],]
+
+
+# Tempalte parameters
+x1: [-3, -2, -1, 0, 1, 2, 3]  # -3 to 3
+c: [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3]  # -0.3 to 0.3
+
+t0: [0]  # observer time corresponding to SN phase 0. (days)
+z: [0.000000000000000000000000000000000000001]  # Essentially 0 (SNCosmo requires z>0)
+
+
+amp_passband: [["lsstg","ab"]] # Absolute magnitudes of the SN types in the given passband.
+amp_max: -20.25  # value typically > -20.25
+amp_min: -18.25  # value typically < -18.25
+amp_num: 1  # Uses np.linspace to create range of amplitudes
+
+
+# Observer phases (relative to peak brightness) at which to produce spectra for.
+# Uses np.linspace
+phase_min: -20  # days
+phase_max: 60  # days 
+phase_num: 81
+
+
+# These are not used in the creation of the templates but
+#are require for the code to run.
+ra: [0]  # deg
+dec: [0]  # deg
+zenith: [-9]
+seeing: [-9]
+moon_brightness: ["invalid"] #["dark", "gray", "bright"]
+t_exp: [-9] # minutes
