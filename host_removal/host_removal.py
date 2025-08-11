@@ -62,7 +62,7 @@ class HostGalaxyRemoval:
                 self.spec_model_params = design_matrix
 
 
-    def remove_galaxy_contamination(self, method="trimmed"):
+    def remove_galaxy_contamination(self):
         '''
         Remove the fitted galaxy spectrum from the observed data and return
         the value.
@@ -75,7 +75,6 @@ class HostGalaxyRemoval:
 
         self.sn_spec_no_host = self.sn_spec_trimmed.copy()
         self.sn_spec_no_host[self.sn_keys[1]] -= self.gal_model
-
 
         return self.sn_spec_no_host
 
