@@ -17,17 +17,17 @@ class HostGalaxyRemoval:
     The SN Ia spectrum must be in rest frame (i.e deredshifted), normalised
     such that the flux is between 0 and 1.  
     '''
-    def __init__(self, sn_spec, sn_rest_phase, fit_wl_bounds=[4000, 7000], sn_keys=["x", "y", "z"], **kwargs):
+    def __init__(self, sn_spec, sn_rest_phase, fit_wl_bounds=[3500, 7500], keys=["x", "y", "z"], **kwargs):
         self.sn_spec = sn_spec
         self.sn_phase = sn_rest_phase
-        self.sn_keys = sn_keys
+        self.sn_keys = keys
         self.fit_lower_wl = fit_wl_bounds[0]
         self.fit_upper_wl = fit_wl_bounds[1]
 
         if self.sn_spec[self.sn_keys[0]].unit == u.nm:
             self.min_wl = nm_to_A(self.min_wl)
 
-        wl_mask = (self.sn_spec[self.sn_keys[0]].value > 4000) & (self.sn_spec[self.sn_keys[0]].value < 7000)
+        wl_mask = (self.sn_spec[self.sn_keys[0]].value > self.fit_lower_wl) & (self.sn_spec[self.sn_keys[0]].value < self.fit_upper_wl)
         self.sn_spec_trimmed = self.sn_spec[wl_mask]
 
         self.sn_templates = None
@@ -47,7 +47,8 @@ class HostGalaxyRemoval:
             self._obtain_gal_eigenspec()
 
         best_chi = np.inf
-        for sn_template in self.sn_templates:
+        for i, sn_template in enumerate(self.sn_templates):
+            print("\nSN template:", i)
             #TODO If the code is slow at iterating over many SN templates
             # then I can multiproccess this step.
             lsq_result, design_matrix = self._lsq_fitting(sn_template)
