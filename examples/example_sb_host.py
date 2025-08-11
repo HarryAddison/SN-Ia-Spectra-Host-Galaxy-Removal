@@ -2,7 +2,7 @@ from host_removal import HostGalaxyRemoval
 from astropy.table import QTable
 
 # Load in the observed SN Ia spectrum
-sn_spec = QTable.read("./data/example_observed_spectrum.fits")
+sn_spec = QTable.read("./data/sb_host_sn_spectrum.fits")
 
 # Define the needed properties of the SN.
 rest_phase = 0
