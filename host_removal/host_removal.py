@@ -36,6 +36,7 @@ class HostGalaxyRemoval:
         self.gal_model = None
         self.sn_model = None
         self.spec_model = None
+        self.spec_model_params = None
         self.sn_spec_no_host = None
 
 
@@ -58,6 +59,7 @@ class HostGalaxyRemoval:
                 self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3])
                 self.gal_eigenvals = lsq_result.x[3:]
                 self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)
+                self.spec_model_params = design_matrix
 
 
     def plot_fit(self, plot_gal_components=True, show=True):
@@ -91,7 +93,7 @@ class HostGalaxyRemoval:
             plt.show()
 
 
-    def remove_galaxy_contamination(self):
+    def remove_galaxy_contamination(self, method="trimmed"):
         '''
         Remove the fitted galaxy spectrum from the observed data and return
         the value.
@@ -102,8 +104,19 @@ class HostGalaxyRemoval:
         if self.gal_model is None:
             self.fit_spectrum()
 
-        # Code that subtracts gal spec from obs sn spec
-        # self.sn_spec_no_host
+        if method is "trimmed":
+            self.sn_spec_no_host = self.sn_spec_trimmed.copy()
+            self.sn_spec_no_host[self.sn_keys[1]] -= self.gal_model
+        elif method is "full":
+            self.sn_spec_no_host = self.sn_spec.copy()
+            self.sn_spec_no_host = align_spec_wave(self.gal_eigenspec, self.sn_spec_no_host,
+                                                   method="linear", keys1=["wave", "flux"], keys2=self.sn_keys)
+            full_gal_model = np.ravel(self.spec_model_params[:, 3:] @ self.gal_eigenvals)
+            self.sn_spec_no_host[self.sn_keys[1]] -= full_gal_model
+        else:
+            ValueError(f"Invalid method: '{method}'\nValid options are 'trimmed' or 'full'")
+        
+        return self.sn_spec_no_host
 
 
     def _obtain_sn_templates(self):
