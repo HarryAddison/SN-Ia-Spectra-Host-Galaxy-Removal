@@ -47,10 +47,7 @@ class HostGalaxyRemoval:
             self._obtain_gal_eigenspec()
 
         best_chi = np.inf
-        for i, sn_template in enumerate(self.sn_templates):
-            print("\nSN template:", i)
-            #TODO If the code is slow at iterating over many SN templates
-            # then I can multiproccess this step.
+        for sn_template in self.sn_templates:
             lsq_result, design_matrix = self._lsq_fitting(sn_template)
 
             better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
