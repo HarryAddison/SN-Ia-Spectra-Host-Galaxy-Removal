@@ -1,4 +1,4 @@
-import os
+import numpy as np
 from astropy.table import QTable
 from importlib.resources import files
 from pathlib import Path
@@ -18,7 +18,12 @@ def find_matching_files(dir, pattern):
 
 
 def load_sn_templates(obs_phase, phase_diff=5):
+    '''
+    phase diff == integer
+    '''
     template_dir  = path = files('host_removal.data').joinpath(f"sn-templates/templates")
+    obs_phase = np.round(obs_phase)
+    phase_diff = np.round(phase_diff)
 
     sn_templates = []
     for i in range((phase_diff * 2) + 1):
