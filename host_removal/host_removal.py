@@ -53,8 +53,8 @@ class HostGalaxyRemoval:
             # then I can multiproccess this step.
             lsq_result, design_matrix = self._lsq_fitting(sn_template)
 
-            eval, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
-            if eval:
+            better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
+            if better_fit:
                 best_chi = chi2
                 self.spec_model = spec_model
                 self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3])
@@ -189,7 +189,14 @@ class HostGalaxyRemoval:
 
 
     def _evaluate_lsq_fit(self, lsq_result, design_matrix, best_chi):
-
+        '''
+        return: a, b, c
+                a = Is the fit better than the given current best
+                    (i.e better than best_chi)
+                b = new best chi2
+                c = new best model
+        '''
+        
         if not lsq_result.success:
             return False, None, None
 
@@ -198,3 +205,5 @@ class HostGalaxyRemoval:
 
         if chi2 < best_chi:
             return True, chi2, model_fit
+        else:
+            return False, None, None
