@@ -17,13 +17,13 @@ sn_spec["flux"] /= max_flux
 sn_spec["flux_err"] /= max_flux
 
 # Initialise the HostGalaxyRemoval object for this SN spectrum
-hgr = HostGalaxyRemoval(sn_spec, rest_phase, sn_keys=["wave", "flux", "flux_err"])
+hgr = HostGalaxyRemoval(sn_spec, rest_phase, keys=["wave", "flux", "flux_err"])
 
 # Run the fitting procedure to get the galaxy model
 hgr.fit_spectrum()
 
 # Remove the host galaxy model from the observed spectrum.
-hgr.remove_galaxy_contamination(method="full")
+hgr.remove_galaxy_contamination()
 
 # Plot the results of the fitting
 hgr.plot_fit(plot_host_free_spec=True, plot_gal_components=True, show=True)
