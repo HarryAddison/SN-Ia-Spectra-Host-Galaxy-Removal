@@ -24,8 +24,6 @@ class HostGalaxyRemoval:
         self.fit_lower_wl = fit_wl_bounds[0]
         self.fit_upper_wl = fit_wl_bounds[1]
 
-        if self.sn_spec[self.sn_keys[0]].unit == u.nm:
-            self.min_wl = nm_to_A(self.min_wl)
 
         wl_mask = (self.sn_spec[self.sn_keys[0]].value > self.fit_lower_wl) & (self.sn_spec[self.sn_keys[0]].value < self.fit_upper_wl)
         self.sn_spec_trimmed = self.sn_spec[wl_mask]
@@ -53,10 +51,10 @@ class HostGalaxyRemoval:
             better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
             if better_fit:
                 best_chi = chi2
-                self.spec_model = spec_model
-                self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3])
+                self.spec_model = spec_model * self.sn_spec_trimmed["flux"].unit  #TODO "Unit handling issue"
+                self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3]) * self.sn_spec_trimmed["flux"].unit  #TODO "Unit handling issue"
                 self.gal_eigenvals = lsq_result.x[3:]
-                self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)
+                self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)  * self.sn_spec_trimmed["flux"].unit  #TODO "Unit handling issue"
                 self.spec_model_params = design_matrix
 
 
@@ -72,8 +70,7 @@ class HostGalaxyRemoval:
             self.fit_spectrum()
 
         self.sn_spec_no_host = self.sn_spec_trimmed.copy()
-        self.sn_spec_no_host[self.sn_keys[1]] -= self.gal_model
-
+        self.sn_spec_no_host[self.sn_keys[1]] = self.sn_spec_no_host[self.sn_keys[1]] - self.gal_model
         return self.sn_spec_no_host
 
 
@@ -193,7 +190,7 @@ class HostGalaxyRemoval:
                 b = new best chi2
                 c = new best model
         '''
-        
+
         if not lsq_result.success:
             return False, None, None
 
