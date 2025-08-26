@@ -1,7 +1,6 @@
 import numpy as np
 from astropy.table import QTable
 from importlib.resources import files
-from pathlib import Path
 
 
 def load_gal_eigenspec(num_eigenspec=10):
@@ -21,7 +20,7 @@ def load_sn_templates(obs_phase, phase_diff=5):
     '''
     phase diff == integer
     '''
-    template_dir  = path = files('host_removal.data').joinpath(f"sn-templates/templates")
+    template_dir = files('host_removal.data').joinpath(f"sn-templates/templates")
     obs_phase = np.round(obs_phase)
     phase_diff = np.round(phase_diff)
 
@@ -31,7 +30,6 @@ def load_sn_templates(obs_phase, phase_diff=5):
         file_paths = list(find_matching_files(template_dir, pattern=f"sn_template_phase_{phase:.1f}"))
         for path in file_paths:
             template = QTable.read(path)
-            template["flux"] /= max(template["flux"])
             sn_templates.append(template)
 
     return sn_templates
