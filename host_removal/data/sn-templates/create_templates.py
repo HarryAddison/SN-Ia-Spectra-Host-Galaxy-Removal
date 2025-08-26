@@ -26,6 +26,10 @@ if __name__ == "__main__":
         template_path = f"{config['template_spec_dir']}/sn_template_phase_{params['observer_phase']}_id_{params['id']}.fits"
         template_spec = template_spectrum(params, template_path)
 
+        # Normalise the template spectrum
+        template_spec["flux"] = template_spec["flux"] / max(template_spec["flux"])
+        template_spec.write(template_path, format="fits", overwrite=True)
+
     # Save the parameters grid of the spectra to produced.
     param_grid.write(config["param_grid_path"], overwrite=True)
 
