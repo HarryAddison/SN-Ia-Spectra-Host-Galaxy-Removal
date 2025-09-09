@@ -51,10 +51,10 @@ class HostGalaxyRemoval:
             better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
             if better_fit:
                 best_chi = chi2
-                self.spec_model = spec_model * self.sn_spec_trimmed["flux"].unit  #TODO "Unit handling issue"
-                self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3]) * self.sn_spec_trimmed["flux"].unit  #TODO "Unit handling issue"
+                self.spec_model = spec_model * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
+                self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3]) * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
                 self.gal_eigenvals = lsq_result.x[3:]
-                self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)  * self.sn_spec_trimmed["flux"].unit  #TODO "Unit handling issue"
+                self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)  * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
                 self.spec_model_params = design_matrix
 
 
