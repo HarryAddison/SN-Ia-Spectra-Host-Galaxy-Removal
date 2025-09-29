@@ -7,7 +7,7 @@ authors = [
 keywords = ["SN Ia", "Host Galaxy"]
 description = "Removal of host galaxy contamination from SN Ia spectra"
 readme = {file = "README.rst", content-type = "text/x-rst"}
-dependencies = ["astropy", "matplotlib", "numpy", "scipy"]
+dependencies = ["astropy", "matplotlib", "numpy", "pandas", "scipy"]
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-doctestplus"]
