@@ -8,6 +8,8 @@ import numpy as np
 from scipy.optimize import lsq_linear
 from host_removal.util.conversions import nm_to_A, align_spec_wave
 from host_removal.util.input_output import load_gal_eigenspec, load_sn_templates
+from host_removal.util.dalek import dalek
+from astropy.table import QTable
 
 
 class HostGalaxyRemoval:
@@ -45,17 +47,21 @@ class HostGalaxyRemoval:
             self._obtain_gal_eigenspec()
 
         best_chi = np.inf
-        for sn_template in self.sn_templates:
+        best_sn_model_ind = None
+
+        for i, sn_template in enumerate(self.sn_templates):
             lsq_result, design_matrix = self._lsq_fitting(sn_template)
 
             better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
             if better_fit:
                 best_chi = chi2
+                best_sn_model_ind = i
                 self.spec_model = spec_model * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
                 self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3]) * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
                 self.gal_eigenvals = lsq_result.x[3:]
                 self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)  * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
                 self.spec_model_params = design_matrix
+        print(best_sn_model_ind)
 
 
     def remove_galaxy_contamination(self):
@@ -120,9 +126,10 @@ class HostGalaxyRemoval:
         Load in the SN templates and align them to the same wavelengths
         as the SN spectrum.
         '''
-        sn_templates = load_sn_templates(self.sn_phase)
+        wl, sn_templates = dalek()
         sn_templates_aligned = []
         for spec in sn_templates:
+            spec = QTable(names=["wave", "flux"], data=[wl, spec])
             sn_templates_aligned.append(align_spec_wave(self.sn_spec_trimmed, spec, keys1=self.sn_keys))
         self.sn_templates = sn_templates_aligned
 
@@ -156,6 +163,12 @@ class HostGalaxyRemoval:
         p0 = np.ones_like(wl)
         p1 = d_wl
         p2 = d_wl**2
+
+
+        # wl = self.sn_spec_trimmed[self.sn_keys[0]].value
+        # p0 = np.ones_like(wl)
+        # p1 = wl
+        # p2 = wl**2
 
         return p0, p1, p2
 
