@@ -24,7 +24,6 @@ class HostGalaxyRemoval:
         self.fit_lower_wl = fit_wl_bounds[0]
         self.fit_upper_wl = fit_wl_bounds[1]
 
-
         wl_mask = (self.sn_spec[self.sn_keys[0]].value > self.fit_lower_wl) & (self.sn_spec[self.sn_keys[0]].value < self.fit_upper_wl)
         self.sn_spec_trimmed = self.sn_spec[wl_mask]
 
@@ -46,16 +45,24 @@ class HostGalaxyRemoval:
 
         best_chi = np.inf
         for sn_template in self.sn_templates:
-            lsq_result, design_matrix = self._lsq_fitting(sn_template)
+            for i in range(2):  # Run the loop twice, with and without galaxy model.
+                if i == 0:
+                    lsq_result, design_matrix = self._lsq_fitting_with_gal(sn_template)
+                if i == 1:
+                    lsq_result, design_matrix = self._lsq_fitting_without_gal(sn_template)
 
-            better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
-            if better_fit:
-                best_chi = chi2
-                self.spec_model = spec_model * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-                self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3]) * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-                self.gal_eigenvals = lsq_result.x[3:]
-                self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)  * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-                self.spec_model_params = design_matrix
+                better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
+                if i == 0:
+                    print("With gal:", chi2)
+                if i == 1:
+                    print("No gal:", chi2, "\n")
+                if better_fit:
+                    best_chi = chi2
+                    self.spec_model = spec_model * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
+                    self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3]) * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
+                    self.gal_eigenvals = lsq_result.x[3:]
+                    self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)  * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
+                    self.spec_model_params = design_matrix
 
 
     def remove_galaxy_contamination(self):
@@ -103,11 +110,12 @@ class HostGalaxyRemoval:
 
             if plot_gal_components:
                 axes[axes_ind].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
-                for i, eigenspec in enumerate(self.gal_eigenspec):
-                    axes[axes_ind].plot(self.sn_spec_trimmed[self.sn_keys[0]],
-                                 np.dot(self.gal_eigenvals[i], eigenspec[self.sn_keys[1]]),
-                                 label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]:.2E})")
-                axes[axes_ind].legend()
+                if len(self.gal_eigenvals) > 0:
+                    for i, eigenspec in enumerate(self.gal_eigenspec):
+                        axes[axes_ind].plot(self.sn_spec_trimmed[self.sn_keys[0]],
+                                            np.dot(self.gal_eigenvals[i], eigenspec[self.sn_keys[1]]),
+                                            label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]:.2E})")
+                    axes[axes_ind].legend()
         else:
             print("Fitting failed! \nCould not plot model spectra.")
 
@@ -160,21 +168,41 @@ class HostGalaxyRemoval:
         return p0, p1, p2
 
 
-    def _design_matrix(self, sn_template):
+    def _design_matrix_with_gal(self, sn_template):
         poly = self._define_sn_template_polynomial()
         gal_eigenspec_fluxes = np.array([spec[self.sn_keys[1]] for spec in self.gal_eigenspec])
         design_matrix = np.vstack([sn_template[self.sn_keys[1]] * poly[0], sn_template[self.sn_keys[1]] * poly[1],
                                    sn_template[self.sn_keys[1]] * poly[2], gal_eigenspec_fluxes]).T
         return design_matrix
+    
+
+    def _design_matrix_without_gal(self, sn_template):
+        poly = self._define_sn_template_polynomial()
+        design_matrix = np.vstack([sn_template[self.sn_keys[1]] * poly[0], sn_template[self.sn_keys[1]] * poly[1],
+                                   sn_template[self.sn_keys[1]] * poly[2]]).T
+        return design_matrix
 
 
-    def _lsq_fitting(self, sn_template):
+    def _lsq_fitting_with_gal(self, sn_template):
 
-        design_matrix = self._design_matrix(sn_template)
+        design_matrix = self._design_matrix_with_gal(sn_template)
         target_vec = self.sn_spec_trimmed[self.sn_keys[1]].value
 
         # Require that the galaxy eigenvalues are positive.
         lower_bounds = np.concatenate([[-np.inf] * 3, [0.0] * len(self.gal_eigenspec)])
+        upper_bounds = np.full(design_matrix.shape[1], np.inf)
+
+        lsq_result = lsq_linear(design_matrix, target_vec, bounds=(lower_bounds, upper_bounds))
+
+        return lsq_result, design_matrix
+
+
+    def _lsq_fitting_without_gal(self, sn_template):
+
+        design_matrix = self._design_matrix_without_gal(sn_template)
+        target_vec = self.sn_spec_trimmed[self.sn_keys[1]].value
+
+        lower_bounds = np.full(design_matrix.shape[1], -np.inf)
         upper_bounds = np.full(design_matrix.shape[1], np.inf)
 
         lsq_result = lsq_linear(design_matrix, target_vec, bounds=(lower_bounds, upper_bounds))
