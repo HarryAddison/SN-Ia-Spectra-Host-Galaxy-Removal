@@ -45,20 +45,30 @@ class HostGalaxyRemoval:
 
         best_chi = np.inf
         for sn_template in self.sn_templates:
-            for i in range(2):  # Run the loop twice, with and without galaxy model.
-                if i == 0:
-                    lsq_result, design_matrix = self._lsq_fitting_with_gal(sn_template)
-                if i == 1:
-                    lsq_result, design_matrix = self._lsq_fitting_without_gal(sn_template)
+            lsq_result, design_matrix = self._lsq_fitting_sn(sn_template)
 
-                better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
-                if better_fit:
-                    best_chi = chi2
-                    self.spec_model = spec_model * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-                    self.sn_model =  np.ravel(design_matrix[:, :3] @ lsq_result.x[:3]) * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-                    self.gal_eigenvals = lsq_result.x[3:]
-                    self.gal_model = np.ravel(design_matrix[:, 3:] @ self.gal_eigenvals)  * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-                    self.spec_model_params = design_matrix
+            better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
+            if better_fit:
+                best_chi = chi2
+                self.sn_model =  np.ravel(design_matrix @ lsq_result.x) * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
+                self.sn_model_params = lsq_result.x
+
+        residuals = self.sn_spec_trimmed[self.sn_keys[1]].value - self.sn_model.value
+
+        lsq_result, design_matrix = self._lsq_fitting_gal(residuals)
+        better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi, data=residuals)
+        if better_fit:
+            best_chi = chi2
+            self.gal_eigenvals = lsq_result.x
+            self.gal_model = np.ravel(design_matrix @ self.gal_eigenvals)  * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
+            self.spec_model = self.sn_model + self.gal_model
+        else:
+            self.gal_eigenvals = np.zeros(len(self.gal_eigenspec))
+            self.gal_model = np.zeros(len(self.sn_model))
+            self.spec_model = self.sn_model
+
+        # TODO Need to add the SN model parameters to self.spec_model_params 
+
 
 
     def remove_galaxy_contamination(self):
@@ -173,11 +183,9 @@ class HostGalaxyRemoval:
         return p0, p1, p2
 
 
-    def _design_matrix_with_gal(self, sn_template):
-        poly = self._define_sn_template_polynomial()
+    def _design_matrix_with_gal(self):
         gal_eigenspec_fluxes = np.array([spec[self.sn_keys[1]] for spec in self.gal_eigenspec])
-        design_matrix = np.vstack([sn_template[self.sn_keys[1]] * poly[0], sn_template[self.sn_keys[1]] * poly[1],
-                                   sn_template[self.sn_keys[1]] * poly[2], gal_eigenspec_fluxes]).T
+        design_matrix = np.vstack([gal_eigenspec_fluxes]).T
         return design_matrix
     
 
@@ -188,13 +196,13 @@ class HostGalaxyRemoval:
         return design_matrix
 
 
-    def _lsq_fitting_with_gal(self, sn_template):
+    def _lsq_fitting_gal(self, residual):
 
-        design_matrix = self._design_matrix_with_gal(sn_template)
-        target_vec = self.sn_spec_trimmed[self.sn_keys[1]].value
+        design_matrix = self._design_matrix_with_gal()
+        target_vec = residual
 
         # Require that the galaxy eigenvalues are positive.
-        lower_bounds = np.concatenate([[-np.inf] * 3, [0.0] * len(self.gal_eigenspec)])
+        lower_bounds = np.full(design_matrix.shape[1], 0)
         upper_bounds = np.full(design_matrix.shape[1], np.inf)
 
         lsq_result = lsq_linear(design_matrix, target_vec, bounds=(lower_bounds, upper_bounds))
@@ -202,7 +210,7 @@ class HostGalaxyRemoval:
         return lsq_result, design_matrix
 
 
-    def _lsq_fitting_without_gal(self, sn_template):
+    def _lsq_fitting_sn(self, sn_template):
 
         design_matrix = self._design_matrix_without_gal(sn_template)
         target_vec = self.sn_spec_trimmed[self.sn_keys[1]].value
@@ -215,7 +223,7 @@ class HostGalaxyRemoval:
         return lsq_result, design_matrix
 
 
-    def _evaluate_lsq_fit(self, lsq_result, design_matrix, best_chi):
+    def _evaluate_lsq_fit(self, lsq_result, design_matrix, best_chi, data=None):
         '''
         return: a, b, c
                 a = Is the fit better than the given current best
@@ -227,8 +235,11 @@ class HostGalaxyRemoval:
         if not lsq_result.success:
             return False, None, None
 
+        if data is None:
+            data = self.sn_spec_trimmed[self.sn_keys[1]].value
+
         model_fit = np.ravel(design_matrix @ lsq_result.x)
-        chi2 = np.sum(((self.sn_spec_trimmed[self.sn_keys[1]].value - model_fit) / self.sn_spec_trimmed[self.sn_keys[2]].value) ** 2)
+        chi2 = np.sum(((data - model_fit) / self.sn_spec_trimmed[self.sn_keys[2]].value) ** 2)
 
         if chi2 < best_chi:
             return True, chi2, model_fit
