@@ -52,10 +52,6 @@ class HostGalaxyRemoval:
                     lsq_result, design_matrix = self._lsq_fitting_without_gal(sn_template)
 
                 better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
-                if i == 0:
-                    print("With gal:", chi2)
-                if i == 1:
-                    print("No gal:", chi2, "\n")
                 if better_fit:
                     best_chi = chi2
                     self.spec_model = spec_model * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
@@ -131,7 +127,16 @@ class HostGalaxyRemoval:
         sn_templates = load_sn_templates(self.sn_phase)
         sn_templates_aligned = []
         for spec in sn_templates:
-            sn_templates_aligned.append(align_spec_wave(self.sn_spec_trimmed, spec, keys1=self.sn_keys))
+            for z_diff in [-0.035, -0.03, -0.025, -0.02, -0.015, -0.01, -0.005, -0.0025, -0.001, 0, 0.001, 0.0025, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035]:#[-0.035, -0.025, -0.015, -0.005, 0, 0.005, 0.015, 0.025, 0.035, 0.045]:
+                if z_diff > 0:
+                    spec["wave"] /= (1 + z_diff)  # Blueshift the spectrum
+                    spec_aligned = align_spec_wave(self.sn_spec_trimmed, spec, keys1=self.sn_keys)  # Note: spec_aligned has same keys as self.sn_keys
+                elif z_diff < 0:
+                    spec["wave"] *= (1 + abs(z_diff))  # Redshift the spectrum
+                    spec_aligned = align_spec_wave(self.sn_spec_trimmed, spec, keys1=self.sn_keys)
+                elif z_diff == 0:
+                    spec_aligned = align_spec_wave(self.sn_spec_trimmed, spec, keys1=self.sn_keys)
+                sn_templates_aligned.append(spec_aligned)
         self.sn_templates = sn_templates_aligned
 
 
