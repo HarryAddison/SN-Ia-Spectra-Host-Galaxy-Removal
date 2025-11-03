@@ -5,6 +5,7 @@ Host galaxy removal class
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.linalg import solve
 from scipy.optimize import lsq_linear
 from host_removal.util.conversions import nm_to_A, align_spec_wave
 from host_removal.util.input_output import load_gal_eigenspec, load_sn_templates
@@ -29,6 +30,7 @@ class HostGalaxyRemoval:
 
         self.sn_templates = None
         self.gal_eigenspec = None
+        self.gal_eigenspec_orth = None
         self.gal_eigenvals = None
         self.gal_model = None
         self.sn_model = None
@@ -37,38 +39,44 @@ class HostGalaxyRemoval:
         self.sn_spec_no_host = None
 
 
-    def fit_spectrum(self):
+    def fit_spectrum(self, regularisation=0.0):
         if self.sn_templates is None:
             self._obtain_sn_templates()
         if self.gal_eigenspec is None:
             self._obtain_gal_eigenspec()
 
+        weights = self.sn_spec_trimmed["flux_err"] / self.sn_spec_trimmed["flux_err"]
+
         best_chi = np.inf
         for sn_template in self.sn_templates:
-            lsq_result, design_matrix = self._lsq_fitting_sn(sn_template)
 
-            better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi)
-            if better_fit:
+            design_matrix, gal_eigenspec_orth = self._design_matrix(sn_template)  # np.column_stack([gal_eigenspec_orth, sn_template[self.sn_keys[1]].value])
+            design_matrix_weighted = design_matrix * weights[:, None]
+            spec_weighted = self.sn_spec_trimmed[self.sn_keys[1]].value * weights
+
+            # Normal equations
+            m = design_matrix_weighted.T @ design_matrix_weighted
+            b = design_matrix_weighted.T @ spec_weighted
+
+            # regularise galaxy eigenspec
+            if regularisation > 0:
+                reg = np.zeros_like(m)
+                n_gal = self.gal_eigenspec_orth.shape[1]
+                reg[:n_gal, :n_gal] = np.eye(n_gal) * regularisation
+                m += reg
+
+            x = solve(m, b)
+            self.spec_model = np.ravel(design_matrix @ x)
+            chi2 = np.sum((self.sn_spec_trimmed[self.sn_keys[1]].value - self.spec_model)**2 * weights)
+            
+            if chi2 < best_chi:
                 best_chi = chi2
-                self.sn_model =  np.ravel(design_matrix @ lsq_result.x) * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-                self.sn_model_params = lsq_result.x
-
-        residuals = self.sn_spec_trimmed[self.sn_keys[1]].value - self.sn_model.value
-
-        lsq_result, design_matrix = self._lsq_fitting_gal(residuals)
-        better_fit, chi2, spec_model = self._evaluate_lsq_fit(lsq_result, design_matrix, best_chi, data=residuals)
-        if better_fit:
-            best_chi = chi2
-            self.gal_eigenvals = lsq_result.x
-            self.gal_model = np.ravel(design_matrix @ self.gal_eigenvals)  * self.sn_spec_trimmed[self.sn_keys[1]].unit  #TODO "Unit handling issue"
-            self.spec_model = self.sn_model + self.gal_model
-        else:
-            self.gal_eigenvals = np.zeros(len(self.gal_eigenspec))
-            self.gal_model = np.zeros(len(self.sn_model))
-            self.spec_model = self.sn_model
-
-        # TODO Need to add the SN model parameters to self.spec_model_params 
-
+                self.gal_eigenspec_orth = gal_eigenspec_orth
+                self.sn_model_params = x[10:]
+                self.gal_eigenvals = x[:10]
+                self.sn_model = np.ravel(design_matrix[:, 10:] @ x[10:]) * self.sn_spec_trimmed[self.sn_keys[1]].unit #TODO "Unit handling issue"
+                self.gal_model = np.ravel(design_matrix[:, :10] @ x[:10]) * self.sn_spec_trimmed[self.sn_keys[1]].unit
+        print(best_chi)
 
 
     def remove_galaxy_contamination(self):
@@ -117,9 +125,9 @@ class HostGalaxyRemoval:
             if plot_gal_components:
                 axes[axes_ind].plot(self.sn_spec_trimmed[self.sn_keys[0]], self.gal_model, label="Model (galaxy)")
                 if len(self.gal_eigenvals) > 0:
-                    for i, eigenspec in enumerate(self.gal_eigenspec):
+                    for i, eigenspec in enumerate(self.gal_eigenspec_orth):
                         axes[axes_ind].plot(self.sn_spec_trimmed[self.sn_keys[0]],
-                                            np.dot(self.gal_eigenvals[i], eigenspec[self.sn_keys[1]]),
+                                            np.dot(self.gal_eigenvals[i], eigenspec),
                                             label=f"Model (eigenspec: {i+1}, eigenval: {self.gal_eigenvals[i]:.2E})")
                     axes[axes_ind].legend()
         else:
@@ -162,6 +170,22 @@ class HostGalaxyRemoval:
         self.gal_eigenspec = gal_eigenspec_aligned
 
 
+    def _wdot(self, x,y, sigma):
+        return np.sum(x * y / (sigma**2))
+
+
+    def _orthogonalise_gal_eigenspec(self, sn_template):
+
+        sn_template_norm = self._wdot(sn_template[self.sn_keys[1]], sn_template[self.sn_keys[1]], self.sn_spec_trimmed[self.sn_keys[2]])
+        gal_eigenspec_orth = np.zeros((len(self.gal_eigenspec), len(self.gal_eigenspec[0][self.sn_keys[0]])))
+        for i, eigenspec in enumerate(self.gal_eigenspec):
+            eigenflux = eigenspec[self.sn_keys[1]].value
+            projection = (self._wdot(eigenflux, sn_template[self.sn_keys[1]].value, self.sn_spec_trimmed[self.sn_keys[2]].value) / sn_template_norm.value) * sn_template[self.sn_keys[1]].value
+            gal_eigenspec_orth[i, :] = eigenflux - projection
+        return gal_eigenspec_orth
+        
+
+
     def _define_sn_template_polynomial(self, wl_fixed=6600):
         '''
         Define the polynomial used to scale the SN template
@@ -183,17 +207,35 @@ class HostGalaxyRemoval:
         return p0, p1, p2
 
 
-    def _design_matrix_with_gal(self):
-        gal_eigenspec_fluxes = np.array([spec[self.sn_keys[1]] for spec in self.gal_eigenspec])
-        design_matrix = np.vstack([gal_eigenspec_fluxes]).T
-        return design_matrix
-    
+    def _design_matrix(self, sn_template):
+        gal_eigenspec_orth = self._orthogonalise_gal_eigenspec(sn_template)
+        sn_poly = self._define_sn_template_polynomial()
+        design_matrix = np.vstack([gal_eigenspec_orth, sn_template[self.sn_keys[1]] * sn_poly[0], sn_template[self.sn_keys[1]] * sn_poly[1],
+                                   sn_template[self.sn_keys[1]] * sn_poly[2]]).T
+        return design_matrix, gal_eigenspec_orth
 
-    def _design_matrix_without_gal(self, sn_template):
-        poly = self._define_sn_template_polynomial()
-        design_matrix = np.vstack([sn_template[self.sn_keys[1]] * poly[0], sn_template[self.sn_keys[1]] * poly[1],
-                                   sn_template[self.sn_keys[1]] * poly[2]]).T
-        return design_matrix
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     def _lsq_fitting_gal(self, residual):
