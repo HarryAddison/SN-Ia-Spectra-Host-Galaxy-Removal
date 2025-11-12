@@ -2,7 +2,9 @@ from host_removal import HostGalaxyRemoval
 from astropy.table import QTable
 
 # Load in the observed SN Ia spectrum
-sn_spec = QTable.read("./data/sc_host_sn_spectrum.fits")
+# sc_host_sn_spectrum_2.fits: SNR=1153 gal flux = 0.1 SN flux
+
+sn_spec = QTable.read("./data/sc_host_sn_spectrum_2.fits")
 
 # Define the needed properties of the SN.
 rest_phase = 0
@@ -17,7 +19,7 @@ sn_spec["flux"] /= max_flux
 sn_spec["flux_err"] /= max_flux
 
 # Initialise the HostGalaxyRemoval object for this SN spectrum
-hgr = HostGalaxyRemoval(sn_spec, rest_phase, keys=["wave", "flux", "flux_err"])
+hgr = HostGalaxyRemoval(sn_spec, rest_phase, spec_keys=["wave", "flux", "flux_err"])
 
 # Run the fitting procedure to get the galaxy model
 hgr.fit_spectrum()
