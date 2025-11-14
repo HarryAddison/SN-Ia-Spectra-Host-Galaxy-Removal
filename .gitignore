@@ -1,5 +1,5 @@
 .git/
-
+.envrc
 # package building / other 
 __pycache__/
 .python-version
