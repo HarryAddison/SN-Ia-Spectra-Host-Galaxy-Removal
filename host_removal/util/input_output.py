@@ -8,7 +8,7 @@ def load_gal_eigenspec(num_eigenspec=10):
     eigenspec = []
     for i in range(num_eigenspec):
         path = files('host_removal.data').joinpath(f"galaxy-eigenspectra/galaxyKL_eigSpec_{i+1}.dat")
-        eigenspec.append(QTable.read(path, format="ascii", names=["wave", "flux"]))
+        eigenspec.append(QTable.read(path, format="ascii", names=["wave", "flux"], units=["Angstrom", None]))
     return eigenspec
 
 

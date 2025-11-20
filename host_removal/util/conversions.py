@@ -1,4 +1,5 @@
 import astropy.units as u
+from astropy.table import QTable
 from scipy.interpolate import interp1d
 
 
@@ -11,12 +12,14 @@ def normalise_data(data, val):
     return data
 
 
-def align_spec_wave(spec1, spec2, method="linear", keys1=["wave", "flux"], keys2=["wave", "flux"]):
+def align_spec_wave(wave_align, spec, method="linear", keys=["x", "y"], **kwargs):
 
-    spec2_interp = spec1[keys1].copy()
-    spec2_func = interp1d(spec2[keys2[0]], spec2[keys2[1]], kind=method, fill_value="extrapolate")
+    # Create a function describing the spectrum
+    spec_func = interp1d(spec[keys[0]], spec[keys[1]], kind=method, fill_value="extrapolate")
 
-    # Interpolate y-values
-    spec2_interp[keys1[1]] = spec2_func(spec1[keys1[0]])
+    # Replace wavelengths with aligned and Interpolate flux values at these new
+    # wavelengths
+    flux_wave_aligned = spec_func(wave_align)
 
-    return spec2_interp
+    spec_aligned = QTable(names=[keys[0], keys[1]], data=[wave_align, flux_wave_aligned])  # Need to specify keys[0, 1] as "keys" can have more items
+    return spec_aligned
